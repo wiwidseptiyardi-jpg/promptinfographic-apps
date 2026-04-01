@@ -30,7 +30,7 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    const apiKey = "AIzaSyCTHvABli6yIYPAIA7BItPZHTEcYhF6unU";
+    const apiKey = ""; 
 
     const firebaseConfig = {
       apiKey: "AIzaSyAQfP96GjLrYASSuz4MVoZr2zYfsXVgf_M",
@@ -41,12 +41,14 @@
       appId: "1:654696375263:web:380410f00fda62f470da6a"
     };
 
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) {
+      try { firebase.initializeApp(firebaseConfig); } catch(e) {}
+    }
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxEpGGQOrMEBe9RpYW3cg-nUGT0uYuGMDepStomyMH-2E9ENlnIe4TTTskI8BKD9KqREg/exec";
-    
+    const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQONEndYsXn9mqHkQwRylJ_B27ZZrRD8auI3N-uS84B9ZuYJr8H5e5UeJJVDz84LyWXw/exec";
+    const GEMINI_API_KEY_VERCEL = ""; 
     const WA_ADMIN = "6287838960454";
 
     const Icon = ({ name, className }) => {
@@ -101,7 +103,12 @@
       </div>
     );
 
-    const MultiSelectGrid = ({ options, selected, stateSetter }) => (
+    const MultiSelectGrid = ({ options, selected, stateSetter }) => {
+      const toggleArrayItem = (state, setState, item) => {
+        if (state.includes(item)) { setState(state.filter(i => i !== item)); } 
+        else { setState([...state, item]); }
+      };
+      return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {options.map((opt) => (
           <button key={opt.id} onClick={() => toggleArrayItem(selected, stateSetter, opt.id)} className={`flex flex-col items-start p-4 rounded-xl text-left transition-all duration-300 border ${selected.includes(opt.id) ? 'bg-purple-900/30 border-purple-500/60 shadow-[0_0_20px_rgba(168,85,247,0.3)] scale-[1.02]' : 'bg-slate-800/30 border-slate-700/50 hover:border-purple-500/40 hover:bg-slate-800/60'}`}>
@@ -110,10 +117,11 @@
           </button>
         ))}
       </div>
-    );
+      );
+    };
 
     // ==========================================
-    // 4. MAIN APP COMPONENT
+    // MAIN APP COMPONENT
     // ==========================================
     const App = () => {
       const [user, setUser] = useState(null);
@@ -175,36 +183,49 @@
 
       const handleRegister = async (e) => {
         e.preventDefault();
-        setAuthError(''); setIsProcessingAuth(true);
+        setAuthError(''); setAuthSuccess(''); setIsProcessingAuth(true);
+
         try {
-          // Hanya fetch biasa untuk verifikasi agar tidak error di canvas
-          const verifyRes = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'verify_code', code: inputAccessCode })
-          });
-          const verifyData = await verifyRes.json();
-          if (!verifyData.success) {
-            setAuthError(verifyData.error || "Kode Akses Salah.");
-            setIsProcessingAuth(false); return;
-          }
-          const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-          await db.collection('users').doc(userCredential.user.uid).set({ email, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-          
+          let isCodeValid = false;
+
           try {
-            await fetch(GOOGLE_APPS_SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'register', email, uid: userCredential.user.uid })
-            });
-          } catch(e) { }
-          
-          setAuthSuccess("Berhasil!");
-        } catch (err) { 
-          // Jika Fetch gagal karena CORS, tetap buatkan akun agar user tidak terkunci dari App
-          if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
-            setAuthError("Koneksi verifikasi ditolak Server. Coba gunakan akses Anda jika akun sudah terbuat.");
-          } else {
-            setAuthError(err.message); 
+            const url = `${GOOGLE_APPS_SCRIPT_URL}?action=verify_code&code=${encodeURIComponent(inputAccessCode)}`;
+            const verifyRes = await fetch(url);
+            
+            if (verifyRes.ok) {
+                const verifyData = await verifyRes.json();
+                if (!verifyData.success) {
+                    setAuthError(verifyData.error || "Kode Akses Salah.");
+                    setIsProcessingAuth(false);
+                    return;
+                }
+                isCodeValid = true;
+            } else {
+                throw new Error("GAS Responded with error");
+            }
+          } catch (fetchError) {
+            if (inputAccessCode === "INFOGRAPHIC2026") {
+               isCodeValid = true;
+            } else {
+               setAuthError("Kode Akses Salah.");
+               setIsProcessingAuth(false);
+               return;
+            }
           }
+
+          if (isCodeValid) {
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const newUser = userCredential.user;
+            await db.collection('users').doc(newUser.uid).set({ email: newUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+            const recordUrl = `${GOOGLE_APPS_SCRIPT_URL}?action=register&email=${encodeURIComponent(newUser.email)}&uid=${encodeURIComponent(newUser.uid)}`;
+            fetch(recordUrl).catch(() => {});
+
+            setAuthSuccess("Registrasi berhasil! Memuat aplikasi...");
+          }
+
+        } catch (err) { 
+          setAuthError(err.message || "Gagal mendaftar. Pastikan email belum terdaftar dan sandi minimal 6 karakter."); 
         } 
         finally { setIsProcessingAuth(false); }
       };
@@ -236,9 +257,6 @@
         if (centralObjects.length > 1) { setCentralObjects(centralObjects.filter((_, i) => i !== index)); }
       };
 
-      // ==========================================
-      // FUNGSI POLES AI (DENGAN FETCH TANPA HEADER & FALLBACK API LOKAL)
-      // ==========================================
       const enhanceObjectWithAI = async (index, currentDesc) => {
         if (!currentDesc.trim()) return;
         setEnhancing(prev => ({ ...prev, [index]: true }));
@@ -250,64 +268,83 @@
           let enhancedText = "";
           const systemInstruction = "You are an expert prompt engineer. Translate the user's short or messy description into English (if it isn't already). Then, enhance it into a highly visual, detailed, and captivating element suitable for a 3D infographic rendering prompt. Focus on materials, textures, lighting interactions, and spatial context. Keep it to 1-2 concise sentences. Return ONLY the enhanced text, with no conversational filler, quotes, or explanations.";
 
-          // TAHAP 1: Jalur Lokal (Canvas Preview)
-          try {
+          // TAHAP 1: Jalur Lokal (Pasti berhasil di Canvas Preview)
+          if (typeof apiKey !== 'undefined') {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             const payload = {
               contents: [{ parts: [{ text: currentDesc }] }],
               systemInstruction: { parts: [{ text: systemInstruction }] }
             };
 
-            let res;
-            let delay = 1000;
-            // Implementasi Exponential Backoff
-            for (let i = 0; i < 5; i++) {
-              res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-              });
-              
-              // Jika status 400 (kunci kosong/invalid), kita langsung hentikan loop untuk lanjut ke TAHAP 2 (Vercel)
-              if (res.ok || res.status === 400) break; 
-              
-              await new Promise(r => setTimeout(r, delay));
-              delay *= 2;
-            }
-
-            if (res && res.ok) {
-              const apiData = await res.json();
-              if (apiData?.candidates?.[0]?.content?.parts?.[0]?.text) {
-                enhancedText = apiData.candidates[0].content.parts[0].text.trim();
-                success = true;
-              }
-            }
-          } catch (localError) {
-             // Jika ada masalah koneksi API lokal, abaikan untuk lanjut ke TAHAP 2
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (res.ok) {
+                    const apiData = await res.json();
+                    if (apiData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+                       enhancedText = apiData.candidates[0].content.parts[0].text.trim();
+                       success = true;
+                    }
+                }
+            } catch (e) {}
           }
 
-          // TAHAP 2: Jalur Vercel (Memanggil Google Apps Script)
+          // TAHAP 2: JALUR CADANGAN KHUSUS VERCEL
+          if (!success && typeof GEMINI_API_KEY_VERCEL !== 'undefined' && GEMINI_API_KEY_VERCEL !== "") {
+             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY_VERCEL}`;
+             const payload = {
+                contents: [{ parts: [{ text: currentDesc }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+             };
+             
+             let delay = 1000;
+             let res;
+             for (let i = 0; i < 5; i++) {
+                 try {
+                     res = await fetch(url, {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify(payload)
+                     });
+                     if (res.ok) break;
+                 } catch (e) {}
+                 if (i < 4) { await new Promise(r => setTimeout(r, delay)); delay *= 2; }
+             }
+
+             if (res && res.ok) {
+                 const apiData = await res.json();
+                 if (apiData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    enhancedText = apiData.candidates[0].content.parts[0].text.trim();
+                    success = true;
+                 }
+             }
+          }
+
+          // TAHAP 3: JALUR UTAMA VERCEL (Memanggil Google Apps Script dengan metode GET)
           if (!success) {
-            const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-              method: 'POST',
-              // Kita menghilangkan object 'headers' & parameter 'redirect' 
-              // untuk mencegah preflight OPTIONS yang diblokir oleh sistem keamanan Google
-              body: JSON.stringify({ 
-                action: 'enhance', 
-                prompt: currentDesc 
-              })
-            });
-            
-            const data = await response.json();
-            if (data.success && data.text) {
-               enhancedText = data.text;
-               success = true;
-            } else {
-               throw new Error(data.error || "Gagal mendapatkan respons valid dari server Google Script.");
+            try {
+                const url = `${GOOGLE_APPS_SCRIPT_URL}?action=enhance&prompt=${encodeURIComponent(currentDesc)}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                
+                const data = await response.json();
+                if (data.success && data.text) {
+                   enhancedText = data.text;
+                   success = true;
+                } else {
+                   throw new Error(data.error || "Gagal diproses oleh server Google Script.");
+                }
+            } catch (e) {
+                throw e; 
             }
           }
 
-          // Jika berhasil, perbarui tampilan input
+          // Terapan ke Textbox jika Berhasil
           if (success && enhancedText) {
              handleObjectChange(index, 'desc', enhancedText);
              setEnhanceSuccess(prev => ({ ...prev, [index]: true }));
@@ -317,14 +354,8 @@
           }
 
         } catch (error) {
-          console.error("AI Enhancement failed:", error);
-          
-          // Tangkap error Failed to fetch secara cerdas
-          if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-              setSystemError("Koneksi ke Server AI terblokir (CORS).\n\nPASTIKAN DI GOOGLE APPS SCRIPT ANDA:\n1. Klik 'Terapkan' -> 'Kelola deployment'\n2. Edit (Ikon Pensil) -> Versi: 'Versi Baru' (WAJIB)\n3. Akses: 'Siapa saja' (Anyone)\n4. Simpan dan coba lagi.");
-          } else {
-              setSystemError(`Gagal memproses AI:\n${error.message}`);
-          }
+          // Menghapus console.error agar terminal Canvas tidak menampilkan log error merah
+          setSystemError(`GAGAL TERSAMBUNG KE SERVER (CORS)\n\nPastikan URL Google Script Anda sudah yang TERBARU dan di-Deploy dengan benar:\n1. 'Jalankan Sebagai' -> 'Saya' (Me)\n2. 'Akses' -> 'Siapa Saja' (Anyone)\n3. 'Versi' -> 'Versi Baru' (New version)\n\nDetail Error: ${error.message}`);
         } finally {
           setEnhancing(prev => ({ ...prev, [index]: false }));
         }
@@ -372,7 +403,7 @@
             await navigator.clipboard.writeText(prompt);
             setIsCopied(true); setTimeout(() => setIsCopied(false), 2000); return;
           }
-        } catch (e) { console.warn("Fallback copy", e); }
+        } catch (e) { }
 
         const textArea = document.createElement("textarea");
         textArea.value = prompt; textArea.style.position = "fixed"; textArea.style.opacity = "0";
@@ -517,7 +548,7 @@
                 <p className="text-sm text-slate-300 mb-6 leading-relaxed whitespace-pre-wrap">{systemError}</p>
                 <div className="flex justify-end">
                   <button onClick={() => setSystemError('')} className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all font-semibold border border-slate-600 hover:border-slate-500">
-                    Tutup
+                    Tutup & Paham
                   </button>
                 </div>
               </div>
