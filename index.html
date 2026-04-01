@@ -239,7 +239,6 @@
           await db.collection('users').doc(newUser.uid).set({ email: newUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
 
           try {
-            // Pendaftaran tetap mencoba via GAS, ini dibiarkan saja
             await fetch(GOOGLE_APPS_SCRIPT_URL, {
               method: 'POST',
               redirect: 'follow',
@@ -280,7 +279,7 @@
       };
 
       // ==========================================
-      // FUNGSI POLES AI (DENGAN DIRECT API BYPASS)
+      // FUNGSI POLES AI (DENGAN AUTO-MODEL FALLBACK)
       // ==========================================
       const enhanceObjectWithAI = async (index, currentDesc) => {
         if (!currentDesc.trim()) return;
@@ -289,50 +288,71 @@
 
         try {
           let activeKey = "";
-          let modelToUse = "gemini-1.5-flash"; // Model standar yang stabil
+          let modelsToTry = [];
 
           // 1. Tentukan API Key berdasarkan lingkungan (Canvas vs Vercel)
           if (typeof canvasApiKey !== 'undefined' && canvasApiKey !== "") {
-            // Sedang di Canvas Preview, gunakan key dari sistem Google
             activeKey = canvasApiKey.trim();
-            modelToUse = "gemini-2.5-flash-preview-09-2025"; 
+            modelsToTry = ["gemini-2.5-flash-preview-09-2025"]; 
             console.log("Lingkungan: Canvas Preview");
           } else {
-            // Sedang di Vercel/Luar, gunakan key milik pengguna
-            activeKey = GEMINI_API_KEY_VERCEL ? GEMINI_API_KEY_VERCEL.trim() : "";
+            activeKey = typeof GEMINI_API_KEY_VERCEL !== 'undefined' ? GEMINI_API_KEY_VERCEL.trim() : "";
             console.log("Lingkungan: Eksternal (Vercel)");
             
             if (!activeKey || activeKey === "MASUKKAN_API_KEY_GEMINI_ANDA_DISINI") {
               throw new Error("API_KEY_KOSONG");
             }
+            
+            // Daftar Model yang akan dicoba berurutan otomatis jika terjadi error 404 (Model Not Found)
+            modelsToTry = [
+                "gemini-1.5-flash-latest",
+                "gemini-1.5-flash",
+                "gemini-1.5-pro-latest",
+                "gemini-pro"
+            ];
           }
 
-          // Instruksi untuk sistem AI
           const systemInstruction = "You are an expert prompt engineer. Translate the user's short or messy description into English (if it isn't already). Then, enhance it into a highly visual, detailed, and captivating element suitable for a 3D infographic rendering prompt. Focus on materials, textures, lighting interactions, and spatial context. Keep it to 1-2 concise sentences. Return ONLY the enhanced text, with no conversational filler, quotes, or explanations.";
           
-          // 2. Lakukan Request LANGSUNG ke Google API (Melewati Google Apps Script untuk menghindari CORS)
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${activeKey}`;
-          
-          const response = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  contents: [{ parts: [{ text: currentDesc }] }],
-                  systemInstruction: { parts: [{ text: systemInstruction }] }
-              })
-          });
+          let successData = null;
+          let lastErrorMsg = "";
 
-          // Tangani Error HTTP dari Gemini API
-          if (!response.ok) {
-              const errData = await response.json().catch(()=>({}));
-              throw new Error(errData?.error?.message || `HTTP Error Status: ${response.status}`);
+          // 2. Loop Auto-Fallback Model (Mencoba daftar model satu per satu tanpa hambatan)
+          for (const model of modelsToTry) {
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`;
+              
+              try {
+                  const response = await fetch(url, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                          contents: [{ parts: [{ text: currentDesc }] }],
+                          systemInstruction: { parts: [{ text: systemInstruction }] }
+                      })
+                  });
+
+                  if (response.ok) {
+                      successData = await response.json();
+                      break; // Berhasil! Keluar dari loop percobaan
+                  } else {
+                      const errData = await response.json().catch(()=>({}));
+                      lastErrorMsg = errData?.error?.message || `HTTP Error Status: ${response.status}`;
+                      console.warn(`Model ${model} ditolak oleh Google. Mencoba model selanjutnya... (${lastErrorMsg})`);
+                  }
+              } catch (fetchErr) {
+                  lastErrorMsg = fetchErr.message;
+                  console.warn(`Fetch error pada ${model}:`, fetchErr);
+              }
           }
 
-          const data = await response.json();
+          // Jika semua model dalam daftar ditolak
+          if (!successData) {
+              throw new Error(lastErrorMsg || "Semua model API Gemini tidak tersedia untuk akun Anda.");
+          }
           
           // Terapkan hasil jika sukses
-          if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-              const enhancedText = data.candidates[0].content.parts[0].text.trim();
+          if (successData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+              const enhancedText = successData.candidates[0].content.parts[0].text.trim();
               handleObjectChange(index, 'desc', enhancedText);
               
               setEnhanceSuccess(prev => ({ ...prev, [index]: true }));
@@ -346,11 +366,10 @@
         } catch (error) {
           console.error("AI Enhancement failed:", error);
           
-          // Tampilkan pesan error yang ramah pengguna
           if (error.message === "API_KEY_KOSONG") {
              alert("⛔ API Key Gemini Belum Diatur!\n\nAgar fitur AI ini bisa berfungsi di situs Vercel Anda, silakan buka kode 'index.html' dan masukkan API Key Gemini milik Anda pada baris kode:\nconst GEMINI_API_KEY_VERCEL = 'ISI_KEY_ANDA_DISINI';");
           } else {
-             alert(`Gagal memproses AI.\n\nDetail Error: ${error.message}\n\nPastikan API Key Anda valid, tidak ada spasi tersembunyi, dan memiliki kuota yang cukup.`);
+             alert(`Gagal memproses AI.\n\nDetail Error: ${error.message}\n\nSaran: Pastikan API Key Anda valid dan memiliki kuota. Anda juga bisa mencoba membuat API Key baru di Google AI Studio.`);
           }
         } finally {
           setEnhancing(prev => ({ ...prev, [index]: false }));
