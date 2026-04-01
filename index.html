@@ -5,17 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>InfographicPrompt.AI - 3D Prompt Generator</title>
   
-  <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- React & ReactDOM via CDN -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  
-  <!-- Babel untuk kompilasi JSX di Browser -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- Firebase Compat Libraries -->
   <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
@@ -25,28 +18,10 @@
     ::-webkit-scrollbar-track { background: #030712; }
     ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #38bdf8; }
-    
-    body { 
-      margin: 0; 
-      padding: 0; 
-      background-color: #030712; 
-      color: #e2e8f0;
-      font-family: 'Inter', system-ui, sans-serif;
-    }
-
-    @keyframes pulse-glow {
-      0%, 100% { opacity: 0.5; transform: scale(1); }
-      50% { opacity: 0.8; transform: scale(1.05); }
-    }
+    body { margin: 0; padding: 0; background-color: #030712; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+    @keyframes pulse-glow { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } }
     .animate-glow { animation: pulse-glow 4s infinite ease-in-out; }
-
-    .glass-panel {
-      background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    }
+    .glass-panel { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
   </style>
 </head>
 <body>
@@ -55,18 +30,8 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // ==========================================
-    // 0. API KEY GEMINI (WAJIB DIISI UNTUK VERCEL)
-    // ==========================================
-    // Ganti tulisan MASUKKAN_API_KEY_GEMINI_ANDA_DISINI dengan API Key asli Anda.
-    const GEMINI_API_KEY_VERCEL = "AIzaSyCTHvABli6yIYPAIA7BItPZHTEcYhF6unU";
+    const apiKey = "";
 
-    // API Key bawaan Canvas (Otomatis terisi jika dites di layar ini, jangan dihapus)
-    const canvasApiKey = typeof apiKey !== 'undefined' ? apiKey : "";
-
-    // ==========================================
-    // 1. PENGATURAN FIREBASE & GOOGLE SHEETS
-    // ==========================================
     const firebaseConfig = {
       apiKey: "AIzaSyAQfP96GjLrYASSuz4MVoZr2zYfsXVgf_M",
       authDomain: "prompt-infografis.firebaseapp.com",
@@ -76,20 +41,14 @@
       appId: "1:654696375263:web:380410f00fda62f470da6a"
     };
 
-    if (!firebase.apps.length) {
-      try { firebase.initializeApp(firebaseConfig); } catch(e) { console.warn("Firebase belum diatur."); }
-    }
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
     const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxEpGGQOrMEBe9RpYW3cg-nUGT0uYuGMDepStomyMH-2E9ENlnIe4TTTskI8BKD9KqREg/exec";
     
-    const ACCESS_CODE = "INFOGRAFIS2026";
     const WA_ADMIN = "6287838960454";
 
-    // ==========================================
-    // 2. KOMPONEN IKON
-    // ==========================================
     const Icon = ({ name, className }) => {
       const icons = {
         Box: <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></>,
@@ -112,22 +71,10 @@
         Download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></>,
         AlignLeft: <><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></>,
         LogOut: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
-        MessageCircle: <><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></>
+        MessageCircle: <><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></>,
+        AlertTriangle: <><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>
       };
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-          {icons[name]}
-        </svg>
-      );
-    };
-
-    // ==========================================
-    // 3. KOMPONEN UI UTAMA APLIKASI
-    // ==========================================
-    
-    const toggleArrayItem = (state, setState, item) => {
-      if (state.includes(item)) { setState(state.filter(i => i !== item)); } 
-      else { setState([...state, item]); }
+      return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{icons[name]}</svg>;
     };
 
     const Section = ({ title, iconName, children }) => (
@@ -178,6 +125,8 @@
       const [authError, setAuthError] = useState('');
       const [authSuccess, setAuthSuccess] = useState('');
       const [isProcessingAuth, setIsProcessingAuth] = useState(false);
+      
+      const [systemError, setSystemError] = useState(''); 
 
       const [isCopied, setIsCopied] = useState(false);
       const [prompt, setPrompt] = useState('');
@@ -220,34 +169,43 @@
         e.preventDefault();
         setAuthError(''); setIsProcessingAuth(true);
         try { await auth.signInWithEmailAndPassword(email, password); } 
-        catch (err) { setAuthError(err.message || "Gagal masuk. Periksa email dan kata sandi Anda."); } 
+        catch (err) { setAuthError("Gagal masuk. Periksa email/sandi."); } 
         finally { setIsProcessingAuth(false); }
       };
 
       const handleRegister = async (e) => {
         e.preventDefault();
-        setAuthError(''); setAuthSuccess(''); setIsProcessingAuth(true);
-        if (inputAccessCode !== ACCESS_CODE) {
-          setAuthError("Kode Akses tidak valid. Silakan hubungi admin via WhatsApp.");
-          setIsProcessingAuth(false);
-          return;
-        }
-
+        setAuthError(''); setIsProcessingAuth(true);
         try {
+          // Hanya fetch biasa untuk verifikasi agar tidak error di canvas
+          const verifyRes = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'verify_code', code: inputAccessCode })
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyData.success) {
+            setAuthError(verifyData.error || "Kode Akses Salah.");
+            setIsProcessingAuth(false); return;
+          }
           const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-          const newUser = userCredential.user;
-          await db.collection('users').doc(newUser.uid).set({ email: newUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-
+          await db.collection('users').doc(userCredential.user.uid).set({ email, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          
           try {
             await fetch(GOOGLE_APPS_SCRIPT_URL, {
-              method: 'POST',
-              redirect: 'follow',
-              body: JSON.stringify({ action: 'register', email: newUser.email, uid: newUser.uid })
+                method: 'POST',
+                body: JSON.stringify({ action: 'register', email, uid: userCredential.user.uid })
             });
-          } catch(e) { console.warn("Perekapan Google Sheet gagal di sisi client:", e); }
-
-          setAuthSuccess("Registrasi berhasil! Memuat aplikasi...");
-        } catch (err) { setAuthError(err.message || "Gagal mendaftar."); } 
+          } catch(e) { }
+          
+          setAuthSuccess("Berhasil!");
+        } catch (err) { 
+          // Jika Fetch gagal karena CORS, tetap buatkan akun agar user tidak terkunci dari App
+          if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
+            setAuthError("Koneksi verifikasi ditolak Server. Coba gunakan akses Anda jika akun sudah terbuat.");
+          } else {
+            setAuthError(err.message); 
+          }
+        } 
         finally { setIsProcessingAuth(false); }
       };
 
@@ -279,72 +237,93 @@
       };
 
       // ==========================================
-      // FUNGSI POLES AI (AKSES LANGSUNG KE GEMINI API)
+      // FUNGSI POLES AI (DENGAN FETCH TANPA HEADER & FALLBACK API LOKAL)
       // ==========================================
       const enhanceObjectWithAI = async (index, currentDesc) => {
         if (!currentDesc.trim()) return;
         setEnhancing(prev => ({ ...prev, [index]: true }));
         setEnhanceSuccess(prev => ({ ...prev, [index]: false }));
+        setSystemError('');
 
         try {
-          let activeKey = "";
+          let success = false;
+          let enhancedText = "";
+          const systemInstruction = "You are an expert prompt engineer. Translate the user's short or messy description into English (if it isn't already). Then, enhance it into a highly visual, detailed, and captivating element suitable for a 3D infographic rendering prompt. Focus on materials, textures, lighting interactions, and spatial context. Keep it to 1-2 concise sentences. Return ONLY the enhanced text, with no conversational filler, quotes, or explanations.";
 
-          // 1. Tentukan API Key berdasarkan lingkungan (Canvas vs Vercel)
-          if (typeof canvasApiKey !== 'undefined' && canvasApiKey !== "") {
-            activeKey = canvasApiKey.trim();
-            console.log("Lingkungan: Canvas Preview");
-          } else {
-            activeKey = typeof GEMINI_API_KEY_VERCEL !== 'undefined' ? GEMINI_API_KEY_VERCEL.trim() : "";
-            console.log("Lingkungan: Eksternal (Vercel)");
+          // TAHAP 1: Jalur Lokal (Canvas Preview)
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+              contents: [{ parts: [{ text: currentDesc }] }],
+              systemInstruction: { parts: [{ text: systemInstruction }] }
+            };
+
+            let res;
+            let delay = 1000;
+            // Implementasi Exponential Backoff
+            for (let i = 0; i < 5; i++) {
+              res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              
+              // Jika status 400 (kunci kosong/invalid), kita langsung hentikan loop untuk lanjut ke TAHAP 2 (Vercel)
+              if (res.ok || res.status === 400) break; 
+              
+              await new Promise(r => setTimeout(r, delay));
+              delay *= 2;
+            }
+
+            if (res && res.ok) {
+              const apiData = await res.json();
+              if (apiData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+                enhancedText = apiData.candidates[0].content.parts[0].text.trim();
+                success = true;
+              }
+            }
+          } catch (localError) {
+             // Jika ada masalah koneksi API lokal, abaikan untuk lanjut ke TAHAP 2
+          }
+
+          // TAHAP 2: Jalur Vercel (Memanggil Google Apps Script)
+          if (!success) {
+            const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+              method: 'POST',
+              // Kita menghilangkan object 'headers' & parameter 'redirect' 
+              // untuk mencegah preflight OPTIONS yang diblokir oleh sistem keamanan Google
+              body: JSON.stringify({ 
+                action: 'enhance', 
+                prompt: currentDesc 
+              })
+            });
             
-            if (!activeKey || activeKey === "MASUKKAN_API_KEY_GEMINI_ANDA_DISINI") {
-              throw new Error("API_KEY_KOSONG");
+            const data = await response.json();
+            if (data.success && data.text) {
+               enhancedText = data.text;
+               success = true;
+            } else {
+               throw new Error(data.error || "Gagal mendapatkan respons valid dari server Google Script.");
             }
           }
 
-          const systemInstruction = "You are an expert prompt engineer. Translate the user's short or messy description into English (if it isn't already). Then, enhance it into a highly visual, detailed, and captivating element suitable for a 3D infographic rendering prompt. Focus on materials, textures, lighting interactions, and spatial context. Keep it to 1-2 concise sentences. Return ONLY the enhanced text, with no conversational filler, quotes, or explanations.";
-          
-          // HANYA GUNAKAN SATU MODEL YANG PALING STABIL (Bebas dari masalah 404 gemini-pro)
-          const model = "gemini-1.5-flash"; 
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`;
-          
-          const response = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  contents: [{ parts: [{ text: currentDesc }] }],
-                  systemInstruction: { parts: [{ text: systemInstruction }] }
-              })
-          });
-
-          // Menangani error asli dari Google Gemini jika API Key tidak valid/terlimit
-          if (!response.ok) {
-              const errData = await response.json().catch(()=>({}));
-              throw new Error(errData?.error?.message || `HTTP Error Status: ${response.status}`);
-          }
-
-          const data = await response.json();
-          
-          // Terapkan hasil jika sukses
-          if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-              const enhancedText = data.candidates[0].content.parts[0].text.trim();
-              handleObjectChange(index, 'desc', enhancedText);
-              
-              setEnhanceSuccess(prev => ({ ...prev, [index]: true }));
-              setTimeout(() => {
-                  setEnhanceSuccess(prev => ({ ...prev, [index]: false }));
-              }, 3000); 
-          } else {
-              throw new Error("Format balasan API Gemini tidak valid atau kosong.");
+          // Jika berhasil, perbarui tampilan input
+          if (success && enhancedText) {
+             handleObjectChange(index, 'desc', enhancedText);
+             setEnhanceSuccess(prev => ({ ...prev, [index]: true }));
+             setTimeout(() => {
+               setEnhanceSuccess(prev => ({ ...prev, [index]: false }));
+             }, 3000); 
           }
 
         } catch (error) {
           console.error("AI Enhancement failed:", error);
           
-          if (error.message === "API_KEY_KOSONG") {
-             alert("⛔ API Key Gemini Belum Diatur!\n\nAgar fitur AI ini bisa berfungsi di situs Vercel Anda, silakan buka kode 'index.html' dan masukkan API Key Gemini milik Anda pada baris kode:\nconst GEMINI_API_KEY_VERCEL = 'ISI_KEY_ANDA_DISINI';");
+          // Tangkap error Failed to fetch secara cerdas
+          if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+              setSystemError("Koneksi ke Server AI terblokir (CORS).\n\nPASTIKAN DI GOOGLE APPS SCRIPT ANDA:\n1. Klik 'Terapkan' -> 'Kelola deployment'\n2. Edit (Ikon Pensil) -> Versi: 'Versi Baru' (WAJIB)\n3. Akses: 'Siapa saja' (Anyone)\n4. Simpan dan coba lagi.");
           } else {
-             alert(`Gagal memproses AI.\n\nDetail Error: ${error.message}\n\nSaran: Pastikan API Key Anda valid dan masih memiliki kuota.`);
+              setSystemError(`Gagal memproses AI:\n${error.message}`);
           }
         } finally {
           setEnhancing(prev => ({ ...prev, [index]: false }));
@@ -524,6 +503,27 @@
       // TAMPILAN APLIKASI UTAMA
       return (
         <div className="min-h-screen bg-[#030712] text-slate-300 font-sans pb-12 relative overflow-hidden selection:bg-cyan-500/30 selection:text-white">
+          
+          {/* Modal Kustom untuk Menampilkan Error Sistem */}
+          {systemError && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+              <div className="glass-panel p-8 rounded-3xl w-full max-w-md border border-rose-500/30 shadow-[0_0_50px_rgba(244,63,94,0.1)] relative">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2.5 bg-rose-500/20 rounded-xl border border-rose-500/30">
+                    <Icon name="AlertTriangle" className="w-6 h-6 text-rose-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Terjadi Kesalahan</h3>
+                </div>
+                <p className="text-sm text-slate-300 mb-6 leading-relaxed whitespace-pre-wrap">{systemError}</p>
+                <div className="flex justify-end">
+                  <button onClick={() => setSystemError('')} className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all font-semibold border border-slate-600 hover:border-slate-500">
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
             <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-indigo-900/20 rounded-full blur-[120px] animate-glow"></div>
             <div className="absolute bottom-[-20%] right-[-10%] w-[40vw] h-[40vw] bg-cyan-900/20 rounded-full blur-[100px] animate-glow" style={{ animationDelay: '2s' }}></div>
